@@ -104,7 +104,7 @@ curl --location 'http://localhost:8080/api/v1/calculate' \
    ```
 3. Запустите сервер:
    ```bash
-   go run ./cmd/calc_service/...
+   go run ./cmd/main.go
    ```
 4. Сервис будет доступен по адресу:  
    `http://localhost:8080`
