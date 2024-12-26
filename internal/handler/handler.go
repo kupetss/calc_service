@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/kupetss/calc_service/internal/calculator"
+	"github.com/kupetss/calc_service/internal/handler"
 	"encoding/json"
 	"net/http"
 	"fmt"
