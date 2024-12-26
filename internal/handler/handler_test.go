@@ -1,37 +1,63 @@
-package handler
-
+package handler_test
 
 import (
 	"bytes"
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 )
 
 func TestCalculateHandler(t *testing.T) {
 	tests := []struct {
-		requestBody string
-		expected    string
-		statusCode  int
+		name           string
+		input          string
+		expectedStatus int
+		expectedBody   interface{}
 	}{
-		{`{"expression": "2+2"}`, `{"result":"4.00"}`, http.StatusOK},
-		{`{"expression": "2+"}`, `{"error":"Expression is not valid"}`, http.StatusUnprocessableEntity},
-		{`{"expr": "2+2"}`, `{"error":"Internal server error"}`, http.StatusInternalServerError},
+		{
+			name:           "valid expression",
+			input:          `{"expression": "2+2"}`,
+			expectedStatus: http.StatusOK,
+			expectedBody:   map[string]interface{}{"result": "4.00"},
+		},
+		{
+			name:           "invalid expression",
+			input:          `{"expression": "2//2"}`,
+			expectedStatus: http.StatusUnprocessableEntity,
+			expectedBody:   map[string]interface{}{"error": "Expression is not valid"},
+		},
+		{
+			name:           "internal server error",
+			input:          `{"expression": ""}`,
+			expectedStatus: http.StatusInternalServerError,
+			expectedBody:   map[string]interface{}{"error": "Internal server error"},
+		},
 	}
 
 	for _, tt := range tests {
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/calculate", bytes.NewBufferString(tt.requestBody))
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/calculate", bytes.NewBufferString(tt.input))
+			req.Header.Set("Content-Type", "application/json")
 
-		CalculateHandler(rec, req)
+			rec := httptest.NewRecorder()
+			CalculateHandler(rec, req)
 
-		if rec.Code != tt.statusCode {
-			t.Errorf("unexpected status code: got %d, expected %d", rec.Code, tt.statusCode)
-		}
+			if rec.Code != tt.expectedStatus {
+				t.Errorf("unexpected status code: got %d, expected %d", rec.Code, tt.expectedStatus)
+			}
 
-		if rec.Body.String() != tt.expected {
-			t.Errorf("unexpected body: got %s, expected %s", rec.Body.String(), tt.expected)
-		}
+			var actualBody map[string]interface{}
+			body, _ := ioutil.ReadAll(rec.Body)
+			if err := json.Unmarshal(body, &actualBody); err != nil {
+				t.Fatalf("failed to unmarshal response body: %v", err)
+			}
+
+			if !reflect.DeepEqual(actualBody, tt.expectedBody) {
+				t.Errorf("unexpected body: got %v, expected %v", actualBody, tt.expectedBody)
+			}
+		})
 	}
 }
